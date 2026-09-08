@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timedelta
 import threading
 import time
+import winsound  # For system sounds on Windows
 
 # File to store data
 DATA_FILE = "focusbuddy_data.json"
@@ -46,62 +47,62 @@ BREAK_MESSAGES = [
     "Rest your mind! Close your eyes for a moment! 😌",
 ]
 
-# Custom color schemes
+# Modern Color Themes
 THEMES = {
-    "Dark Mode": {
-        "bg": "#1e1e1e",
-        "fg": "#ffffff",
-        "primary": "#7c3aed",
-        "secondary": "#06b6d4",
-        "accent": "#ec4899",
-        "success": "#10b981",
-        "warning": "#f59e0b",
-        "card_bg": "#2d2d2d",
-        "text_dark": "#e5e5e5"
+    "Neon Purple": {
+        "bg": "#0a0e27",
+        "primary": "#b721ff",
+        "secondary": "#ff006e",
+        "accent": "#00d9ff",
+        "card_bg": "#1a1f3a",
+        "text": "#ffffff",
+        "text_light": "#b0b0b0",
+        "success": "#00ff88",
+        "warning": "#ffa500"
     },
-    "Light Mode": {
-        "bg": "#f0f2f5",
-        "fg": "#1a1a1a",
-        "primary": "#4CAF50",
-        "secondary": "#2196F3",
-        "accent": "#FF5722",
-        "success": "#4CAF50",
-        "warning": "#FF9800",
-        "card_bg": "#ffffff",
-        "text_dark": "#333333"
+    "Ocean Blue": {
+        "bg": "#0f1419",
+        "primary": "#00b4d8",
+        "secondary": "#0096c7",
+        "accent": "#00d9ff",
+        "card_bg": "#1a2332",
+        "text": "#ffffff",
+        "text_light": "#a8dadc",
+        "success": "#06d6a0",
+        "warning": "#fb5607"
     },
-    "Ocean": {
-        "bg": "#0a1628",
-        "fg": "#e0f2fe",
-        "primary": "#0ea5e9",
-        "secondary": "#06b6d4",
-        "accent": "#22d3ee",
-        "success": "#10b981",
-        "warning": "#f59e0b",
-        "card_bg": "#164e63",
-        "text_dark": "#cffafe"
+    "Forest Green": {
+        "bg": "#0b1929",
+        "primary": "#2ecc71",
+        "secondary": "#27ae60",
+        "accent": "#1abc9c",
+        "card_bg": "#1a3a2a",
+        "text": "#ecf0f1",
+        "text_light": "#95a5a6",
+        "success": "#f39c12",
+        "warning": "#e74c3c"
     },
-    "Forest": {
-        "bg": "#1a3a1a",
-        "fg": "#e8f5e9",
-        "primary": "#4ade80",
-        "secondary": "#22c55e",
-        "accent": "#84cc16",
-        "success": "#10b981",
-        "warning": "#f59e0b",
-        "card_bg": "#2d5f2d",
-        "text_dark": "#c6f6d5"
+    "Sunset Glow": {
+        "bg": "#1a0f2e",
+        "primary": "#ff6b6b",
+        "secondary": "#ff8e3c",
+        "accent": "#ffd93d",
+        "card_bg": "#2d1b3d",
+        "text": "#ffffff",
+        "text_light": "#d4a5a5",
+        "success": "#6bcf7f",
+        "warning": "#ff6348"
     },
-    "Sunset": {
-        "bg": "#2a1810",
-        "fg": "#fef3c7",
-        "primary": "#fb923c",
-        "secondary": "#f97316",
-        "accent": "#ea580c",
-        "success": "#10b981",
-        "warning": "#f59e0b",
-        "card_bg": "#3f2d1d",
-        "text_dark": "#fed7aa"
+    "Cyber Dark": {
+        "bg": "#0d0221",
+        "primary": "#3a86ff",
+        "secondary": "#8338ec",
+        "accent": "#fb5607",
+        "card_bg": "#1a0033",
+        "text": "#ffffff",
+        "text_light": "#c0c0c0",
+        "success": "#06ffa5",
+        "warning": "#ff006e"
     }
 }
 
@@ -109,15 +110,17 @@ THEMES = {
 class FocusBuddyApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("FocusBuddy - Smart Screen-Time Nudge App")
-        self.root.geometry("1000x900")
+        self.root.title("🎯 FocusBuddy - Smart Screen-Time Nudge App")
+        self.root.geometry("1100x900")
         self.root.resizable(True, True)
         
-        # Theme selection
-        self.current_theme = "Dark Mode"
-        self.colors = THEMES[self.current_theme].copy()
+        # Set theme
+        self.current_theme = "Neon Purple"
+        self.theme = THEMES[self.current_theme].copy()
+        self.root.configure(bg=self.theme["bg"])
         
-        self.root.configure(bg=self.colors["bg"])
+        # Configure style
+        self.setup_styles()
         
         # Data variables
         self.current_activity = tk.StringVar(value="Studying")
@@ -131,8 +134,27 @@ class FocusBuddyApp:
         self.create_ui()
         self.update_dashboard()
         
-        # Start break reminder thread
+        # Start break reminder
         self.start_break_reminder()
+    
+    def setup_styles(self):
+        """Setup ttk styles for the theme"""
+        style = ttk.Style()
+        style.theme_use('clam')
+        
+        # Configure progress bar colors
+        style.configure("TProgressbar", 
+                       background=self.theme["primary"],
+                       troughcolor=self.theme["card_bg"],
+                       bordercolor=self.theme["accent"],
+                       lightcolor=self.theme["primary"],
+                       darkcolor=self.theme["primary"])
+        
+        # Configure combobox
+        style.configure("TCombobox",
+                       fieldbackground=self.theme["card_bg"],
+                       background=self.theme["primary"],
+                       foreground=self.theme["text"])
     
     def load_data(self):
         """Load data from JSON file"""
@@ -140,16 +162,14 @@ class FocusBuddyApp:
             try:
                 with open(DATA_FILE, 'r') as f:
                     data = json.load(f)
-                    # Check if data is from today
                     if data.get('date') == str(datetime.now().date()):
                         return data
             except:
                 pass
         
-        # Return default data structure
         return {
             'date': str(datetime.now().date()),
-            'daily_goal': 480,  # 8 hours in minutes
+            'daily_goal': 480,
             'total_screen_time': 0,
             'breaks_taken': 0,
             'sessions': [],
@@ -169,433 +189,328 @@ class FocusBuddyApp:
     def change_theme(self, theme_name):
         """Change the app theme"""
         self.current_theme = theme_name
-        self.colors = THEMES[theme_name].copy()
-        self.root.configure(bg=self.colors["bg"])
+        self.theme = THEMES[theme_name].copy()
+        self.root.configure(bg=self.theme["bg"])
+        self.setup_styles()
         
-        # Recreate UI with new colors
+        # Clear and recreate UI
         for widget in self.root.winfo_children():
             widget.destroy()
         
         self.create_ui()
         self.update_dashboard()
     
+    def play_sound(self):
+        """Play a notification sound (Windows only)"""
+        try:
+            winsound.Beep(1000, 200)  # Frequency 1000Hz, Duration 200ms
+        except:
+            pass
+    
     def create_ui(self):
-        """Create the main UI"""
-        # Top navbar with theme selector
-        navbar = tk.Frame(self.root, bg=self.colors["primary"], height=60)
-        navbar.pack(fill=tk.X, padx=0, pady=0)
-        navbar.pack_propagate(False)
+        """Create the main UI with new design"""
+        # Top header with gradient effect
+        header_frame = tk.Frame(self.root, bg=self.theme["primary"], height=90)
+        header_frame.pack(fill=tk.X, padx=0, pady=0)
+        header_frame.pack_propagate(False)
         
-        # Title
+        # Main title
         title_label = tk.Label(
-            navbar,
-            text="🎯 FocusBuddy - Smart Screen-Time Nudge App",
-            font=("Helvetica", 16, "bold"),
-            bg=self.colors["primary"],
-            fg="#ffffff"
+            header_frame,
+            text="⚡ FocusBuddy",
+            font=("Arial", 28, "bold"),
+            bg=self.theme["primary"],
+            fg=self.theme["text"]
         )
-        title_label.pack(side=tk.LEFT, pady=15, padx=20)
+        title_label.pack(pady=(10, 0))
         
-        # Theme selector
-        theme_frame = tk.Frame(navbar, bg=self.colors["primary"])
-        theme_frame.pack(side=tk.RIGHT, padx=20, pady=10)
+        subtitle_label = tk.Label(
+            header_frame,
+            text="Smart Screen-Time Management for Students",
+            font=("Arial", 10),
+            bg=self.theme["primary"],
+            fg=self.theme["text_light"]
+        )
+        subtitle_label.pack(pady=(0, 10))
+        
+        # Theme selector on the right
+        theme_selector_frame = tk.Frame(header_frame, bg=self.theme["primary"])
+        theme_selector_frame.pack(side=tk.RIGHT, padx=20, pady=15)
         
         tk.Label(
-            theme_frame,
-            text="Theme:",
-            font=("Helvetica", 9),
-            bg=self.colors["primary"],
-            fg="white"
+            theme_selector_frame,
+            text="Theme: ",
+            font=("Arial", 9, "bold"),
+            bg=self.theme["primary"],
+            fg=self.theme["text"]
         ).pack(side=tk.LEFT, padx=5)
         
         theme_combo = ttk.Combobox(
-            theme_frame,
+            theme_selector_frame,
             values=list(THEMES.keys()),
             state="readonly",
-            width=12,
-            font=("Helvetica", 9)
+            width=15,
+            font=("Arial", 9)
         )
         theme_combo.set(self.current_theme)
         theme_combo.pack(side=tk.LEFT, padx=5)
         theme_combo.bind("<<ComboboxSelected>>", lambda e: self.change_theme(theme_combo.get()))
         
-        # Main scrollable container
-        main_canvas = tk.Canvas(
-            self.root,
-            bg=self.colors["bg"],
-            highlightthickness=0,
-            height=700
-        )
-        scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=main_canvas.yview)
-        scrollable_frame = tk.Frame(main_canvas, bg=self.colors["bg"])
+        # Main content with scrollbar
+        main_frame = tk.Frame(self.root, bg=self.theme["bg"])
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Create canvas for scrolling
+        canvas = tk.Canvas(main_frame, bg=self.theme["bg"], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=self.theme["bg"])
         
         scrollable_frame.bind(
             "<Configure>",
-            lambda e: main_canvas.configure(scrollregion=main_canvas.bbox("all"))
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
         
-        main_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        main_canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
         
-        main_canvas.pack(side="left", fill="both", expand=True)
+        canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Premium Dashboard Section
-        self.create_premium_dashboard(scrollable_frame)
-        
-        # Quick Stats
-        self.create_quick_stats(scrollable_frame)
-        
-        # Activity Selection Section
+        # Create sections
+        self.create_mega_dashboard(scrollable_frame)
         self.create_activity_section(scrollable_frame)
-        
-        # Tracking Section
         self.create_tracking_section(scrollable_frame)
-        
-        # Statistics Section
-        self.create_statistics_section(scrollable_frame)
-        
-        # Button Section
-        self.create_button_section(scrollable_frame)
+        self.create_stats_section(scrollable_frame)
+        self.create_controls_section(scrollable_frame)
     
-    def create_card(self, parent, bg_color=None):
-        """Helper to create a styled card"""
-        if bg_color is None:
-            bg_color = self.colors["card_bg"]
-        return tk.Frame(parent, bg=bg_color, relief=tk.FLAT, bd=0)
-    
-    def create_premium_dashboard(self, parent):
-        """Create a premium-looking main dashboard"""
-        dash_frame = self.create_card(parent)
-        dash_frame.pack(fill=tk.X, padx=15, pady=15)
+    def create_card(self, parent, title, icon=""):
+        """Create a styled card"""
+        card = tk.Frame(parent, bg=self.theme["card_bg"], relief=tk.FLAT)
+        card.pack(fill=tk.X, padx=0, pady=8)
         
-        # Main dashboard header
-        header = tk.Frame(dash_frame, bg=self.colors["primary"], height=50)
+        # Card header
+        header = tk.Frame(card, bg=self.theme["primary"], height=45)
         header.pack(fill=tk.X, padx=0, pady=0)
         header.pack_propagate(False)
         
-        tk.Label(
+        header_label = tk.Label(
             header,
-            text="📊 Today's Performance",
-            font=("Helvetica", 14, "bold"),
-            bg=self.colors["primary"],
-            fg="white"
-        ).pack(side=tk.LEFT, pady=12, padx=20)
-        
-        # Main stats grid
-        stats_grid = tk.Frame(dash_frame, bg=self.colors["card_bg"])
-        stats_grid.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
-        
-        # Screen time box
-        time_box = self.create_stat_box(
-            stats_grid,
-            "⏱️ Total Screen Time",
-            "0h 0m",
-            self.colors["secondary"]
+            text=f"{icon} {title}",
+            font=("Arial", 12, "bold"),
+            bg=self.theme["primary"],
+            fg=self.theme["text"]
         )
-        time_box.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-        self.screen_time_display = time_box.winfo_children()[1]
+        header_label.pack(side=tk.LEFT, pady=10, padx=15)
         
-        # Daily goal box
-        goal_box = self.create_stat_box(
-            stats_grid,
-            "🎯 Daily Goal",
-            "8h 0m",
-            self.colors["accent"]
+        # Card content
+        content = tk.Frame(card, bg=self.theme["card_bg"])
+        content.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        return content
+    
+    def create_mega_dashboard(self, parent):
+        """Create the main dashboard with stats"""
+        dash = tk.Frame(parent, bg=self.theme["card_bg"], relief=tk.FLAT)
+        dash.pack(fill=tk.X, padx=0, pady=8)
+        
+        # Colorful header
+        header = tk.Frame(dash, bg=self.theme["accent"], height=50)
+        header.pack(fill=tk.X, padx=0, pady=0)
+        header.pack_propagate(False)
+        
+        header_label = tk.Label(
+            header,
+            text="🎯 TODAY'S PERFORMANCE",
+            font=("Arial", 14, "bold"),
+            bg=self.theme["accent"],
+            fg=self.theme["bg"]
         )
-        goal_box.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
-        self.goal_display = goal_box.winfo_children()[1]
+        header_label.pack(side=tk.LEFT, pady=12, padx=15)
         
-        # Breaks box
-        breaks_box = self.create_stat_box(
-            stats_grid,
-            "☕ Breaks Taken",
-            "0",
-            self.colors["success"]
-        )
-        breaks_box.grid(row=0, column=2, padx=10, pady=10, sticky="nsew")
-        self.breaks_display = breaks_box.winfo_children()[1]
+        # Stats grid
+        stats_frame = tk.Frame(dash, bg=self.theme["card_bg"])
+        stats_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=20)
         
-        # Configure grid weights
-        stats_grid.columnconfigure(0, weight=1)
-        stats_grid.columnconfigure(1, weight=1)
-        stats_grid.columnconfigure(2, weight=1)
+        # Screen Time Stat
+        st_frame = tk.Frame(stats_frame, bg=self.theme["card_bg"], relief=tk.RAISED, bd=2)
+        st_frame.pack(side=tk.LEFT, padx=10, fill=tk.BOTH, expand=True)
+        
+        tk.Label(st_frame, text="⏱️", font=("Arial", 28), bg=self.theme["card_bg"]).pack(pady=(10, 0))
+        tk.Label(st_frame, text="Screen Time", font=("Arial", 9, "bold"), 
+                 bg=self.theme["card_bg"], fg=self.theme["text_light"]).pack()
+        
+        self.screen_time_label = tk.Label(st_frame, text="0h 0m", font=("Arial", 24, "bold"),
+                                          bg=self.theme["card_bg"], fg=self.theme["secondary"])
+        self.screen_time_label.pack(pady=(0, 10))
+        
+        # Daily Goal Stat
+        dg_frame = tk.Frame(stats_frame, bg=self.theme["card_bg"], relief=tk.RAISED, bd=2)
+        dg_frame.pack(side=tk.LEFT, padx=10, fill=tk.BOTH, expand=True)
+        
+        tk.Label(dg_frame, text="🎯", font=("Arial", 28), bg=self.theme["card_bg"]).pack(pady=(10, 0))
+        tk.Label(dg_frame, text="Daily Goal", font=("Arial", 9, "bold"), 
+                 bg=self.theme["card_bg"], fg=self.theme["text_light"]).pack()
+        
+        self.goal_label = tk.Label(dg_frame, text="8h 0m", font=("Arial", 24, "bold"),
+                                   bg=self.theme["card_bg"], fg=self.theme["primary"])
+        self.goal_label.pack(pady=(0, 10))
+        
+        # Breaks Stat
+        br_frame = tk.Frame(stats_frame, bg=self.theme["card_bg"], relief=tk.RAISED, bd=2)
+        br_frame.pack(side=tk.LEFT, padx=10, fill=tk.BOTH, expand=True)
+        
+        tk.Label(br_frame, text="☕", font=("Arial", 28), bg=self.theme["card_bg"]).pack(pady=(10, 0))
+        tk.Label(br_frame, text="Breaks Taken", font=("Arial", 9, "bold"), 
+                 bg=self.theme["card_bg"], fg=self.theme["text_light"]).pack()
+        
+        self.breaks_label = tk.Label(br_frame, text="0", font=("Arial", 24, "bold"),
+                                     bg=self.theme["card_bg"], fg=self.theme["success"])
+        self.breaks_label.pack(pady=(0, 10))
         
         # Progress section
-        progress_section = tk.Frame(dash_frame, bg=self.colors["card_bg"])
-        progress_section.pack(fill=tk.X, padx=15, pady=10)
+        progress_frame = tk.Frame(dash, bg=self.theme["card_bg"])
+        progress_frame.pack(fill=tk.X, padx=15, pady=15)
         
-        progress_label = tk.Label(
-            progress_section,
-            text="Progress to Goal",
-            font=("Helvetica", 11, "bold"),
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_dark"]
-        )
-        progress_label.pack(anchor=tk.W, pady=(0, 8))
+        tk.Label(progress_frame, text="Progress to Goal", font=("Arial", 11, "bold"),
+                 bg=self.theme["card_bg"], fg=self.theme["text"]).pack(anchor=tk.W, pady=(0, 8))
         
-        # Custom progress bar
         self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(
-            progress_section,
-            variable=self.progress_var,
-            maximum=100,
-            length=400,
-            mode='determinate'
-        )
-        self.progress_bar.pack(fill=tk.X, pady=5)
+        progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var, maximum=100, mode='determinate')
+        progress_bar.pack(fill=tk.X, pady=5)
         
-        self.progress_label = tk.Label(
-            progress_section,
-            text="0% of daily goal used",
-            font=("Helvetica", 10, "bold"),
-            bg=self.colors["card_bg"],
-            fg=self.colors["primary"]
-        )
-        self.progress_label.pack(anchor=tk.W, pady=(5, 0))
+        self.progress_label = tk.Label(progress_frame, text="0% used", font=("Arial", 9, "bold"),
+                                       bg=self.theme["card_bg"], fg=self.theme["accent"])
+        self.progress_label.pack(anchor=tk.W)
         
         # Motivational message
         self.motivational_label = tk.Label(
-            dash_frame,
-            text="Keep up the good work! 💪",
-            font=("Helvetica", 10, "italic"),
-            bg=self.colors["card_bg"],
-            fg=self.colors["secondary"],
+            dash,
+            text="Keep crushing your goals! 💪",
+            font=("Arial", 11, "italic"),
+            bg=self.theme["card_bg"],
+            fg=self.theme["accent"],
             wraplength=600
         )
-        self.motivational_label.pack(pady=15)
-    
-    def create_stat_box(self, parent, title, value, color):
-        """Create a stat box for dashboard"""
-        box = tk.Frame(parent, bg=self.colors["card_bg"], relief=tk.RAISED, bd=1)
-        
-        title_label = tk.Label(
-            box,
-            text=title,
-            font=("Helvetica", 9, "bold"),
-            bg=self.colors["card_bg"],
-            fg=color
-        )
-        title_label.pack(pady=(10, 5))
-        
-        value_label = tk.Label(
-            box,
-            text=value,
-            font=("Helvetica", 20, "bold"),
-            bg=self.colors["card_bg"],
-            fg=color
-        )
-        value_label.pack(pady=(0, 10))
-        
-        return box
-    
-    def create_quick_stats(self, parent):
-        """Create quick stats overview"""
-        stats_frame = self.create_card(parent)
-        stats_frame.pack(fill=tk.X, padx=15, pady=10)
-        
-        header = tk.Frame(stats_frame, bg=self.colors["secondary"], height=40)
-        header.pack(fill=tk.X, padx=0, pady=0)
-        header.pack_propagate(False)
-        
-        tk.Label(
-            header,
-            text="📈 Quick Activity Summary",
-            font=("Helvetica", 12, "bold"),
-            bg=self.colors["secondary"],
-            fg="white"
-        ).pack(side=tk.LEFT, pady=10, padx=15)
-        
-        content = tk.Frame(stats_frame, bg=self.colors["card_bg"])
-        content.pack(fill=tk.X, padx=15, pady=15)
-        
-        self.quick_stats_labels = {}
-        for i, activity in enumerate(["Studying", "Gaming", "Entertainment", "Other"]):
-            activity_frame = tk.Frame(content, bg=self.colors["card_bg"])
-            activity_frame.pack(fill=tk.X, pady=8)
-            
-            # Activity indicator
-            tk.Label(
-                activity_frame,
-                text="●",
-                font=("Helvetica", 16),
-                bg=self.colors["card_bg"],
-                fg=self.colors["primary"]
-            ).pack(side=tk.LEFT, padx=(0, 10))
-            
-            tk.Label(
-                activity_frame,
-                text=f"{activity}:",
-                font=("Helvetica", 10, "bold"),
-                bg=self.colors["card_bg"],
-                fg=self.colors["text_dark"],
-                width=18,
-                anchor=tk.W
-            ).pack(side=tk.LEFT, padx=5)
-            
-            self.quick_stats_labels[activity] = tk.Label(
-                activity_frame,
-                text="0h 0m",
-                font=("Helvetica", 10, "bold"),
-                bg=self.colors["card_bg"],
-                fg=self.colors["secondary"]
-            )
-            self.quick_stats_labels[activity].pack(side=tk.LEFT, padx=5)
+        self.motivational_label.pack(pady=10)
     
     def create_activity_section(self, parent):
-        """Create activity selection section"""
-        act_frame = self.create_card(parent)
-        act_frame.pack(fill=tk.X, padx=15, pady=10)
-        
-        header = tk.Frame(act_frame, bg=self.colors["warning"], height=40)
-        header.pack(fill=tk.X, padx=0, pady=0)
-        header.pack_propagate(False)
-        
-        tk.Label(
-            header,
-            text="🎯 What Are You Doing?",
-            font=("Helvetica", 12, "bold"),
-            bg=self.colors["warning"],
-            fg="white"
-        ).pack(side=tk.LEFT, pady=10, padx=15)
-        
-        act_content = tk.Frame(act_frame, bg=self.colors["card_bg"])
-        act_content.pack(fill=tk.X, padx=15, pady=15)
+        """Create activity selection"""
+        content = self.create_card(parent, "What Are You Doing?", "🎮")
         
         activities = ["Studying", "Gaming", "Entertainment", "Other"]
+        activity_frame = tk.Frame(content, bg=self.theme["card_bg"])
+        activity_frame.pack(fill=tk.X)
         
-        for activity in activities:
+        for i, activity in enumerate(activities):
+            rb_frame = tk.Frame(activity_frame, bg=self.theme["card_bg"])
+            rb_frame.pack(fill=tk.X, pady=8)
+            
             rb = tk.Radiobutton(
-                act_content,
+                rb_frame,
                 text=activity,
                 variable=self.current_activity,
                 value=activity,
-                font=("Helvetica", 10),
-                bg=self.colors["card_bg"],
-                fg=self.colors["text_dark"],
-                activebackground=self.colors["card_bg"],
-                selectcolor=self.colors["warning"]
+                font=("Arial", 11, "bold"),
+                bg=self.theme["card_bg"],
+                fg=self.theme["text"],
+                activebackground=self.theme["card_bg"],
+                activeforeground=self.theme["accent"],
+                selectcolor=self.theme["primary"],
+                command=self.update_dashboard
             )
-            rb.pack(anchor=tk.W, pady=5)
+            rb.pack(anchor=tk.W, padx=15)
     
     def create_tracking_section(self, parent):
-        """Create screen time tracking section"""
-        track_frame = self.create_card(parent)
-        track_frame.pack(fill=tk.X, padx=15, pady=10)
-        
-        header = tk.Frame(track_frame, bg=self.colors["success"], height=40)
-        header.pack(fill=tk.X, padx=0, pady=0)
-        header.pack_propagate(False)
-        
-        tk.Label(
-            header,
-            text="⏱️ Screen-Time Tracking",
-            font=("Helvetica", 12, "bold"),
-            bg=self.colors["success"],
-            fg="white"
-        ).pack(side=tk.LEFT, pady=10, padx=15)
-        
-        track_content = tk.Frame(track_frame, bg=self.colors["card_bg"])
-        track_content.pack(fill=tk.X, padx=15, pady=15)
+        """Create tracking section"""
+        content = self.create_card(parent, "Screen-Time Tracking", "⏱️")
         
         # Quick add buttons
-        quick_frame = tk.Frame(track_content, bg=self.colors["card_bg"])
+        quick_frame = tk.Frame(content, bg=self.theme["card_bg"])
         quick_frame.pack(fill=tk.X, pady=10)
         
-        tk.Label(
-            quick_frame,
-            text="Quick Add:",
-            font=("Helvetica", 10, "bold"),
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_dark"]
-        ).pack(side=tk.LEFT, padx=5)
+        tk.Label(quick_frame, text="Quick Add:", font=("Arial", 10, "bold"),
+                 bg=self.theme["card_bg"], fg=self.theme["text"]).pack(side=tk.LEFT, padx=5)
         
         for minutes in [15, 30, 60]:
             btn = tk.Button(
                 quick_frame,
                 text=f"+ {minutes}m",
                 command=lambda m=minutes: self.add_screen_time(m),
-                font=("Helvetica", 9, "bold"),
-                bg=self.colors["secondary"],
-                fg="white",
+                font=("Arial", 10, "bold"),
+                bg=self.theme["secondary"],
+                fg=self.theme["text"],
                 padx=12,
                 pady=6,
                 relief=tk.FLAT,
-                cursor="hand2"
+                cursor="hand2",
+                activebackground=self.theme["accent"]
             )
             btn.pack(side=tk.LEFT, padx=5)
         
-        # Custom time input
-        custom_frame = tk.Frame(track_content, bg=self.colors["card_bg"])
+        # Custom input
+        custom_frame = tk.Frame(content, bg=self.theme["card_bg"])
         custom_frame.pack(fill=tk.X, pady=10)
         
-        tk.Label(
-            custom_frame,
-            text="Custom Time (min):",
-            font=("Helvetica", 10, "bold"),
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_dark"]
-        ).pack(side=tk.LEFT, padx=5)
+        tk.Label(custom_frame, text="Custom Time (min):", font=("Arial", 10, "bold"),
+                 bg=self.theme["card_bg"], fg=self.theme["text"]).pack(side=tk.LEFT, padx=5)
         
-        self.custom_time_entry = tk.Entry(
+        self.custom_entry = tk.Entry(
             custom_frame,
             width=8,
-            font=("Helvetica", 10),
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_dark"],
-            insertbackground=self.colors["primary"]
+            font=("Arial", 10),
+            bg=self.theme["card_bg"],
+            fg=self.theme["text"],
+            insertbackground=self.theme["accent"],
+            relief=tk.FLAT,
+            bd=2
         )
-        self.custom_time_entry.pack(side=tk.LEFT, padx=5)
+        self.custom_entry.pack(side=tk.LEFT, padx=5)
         
         add_btn = tk.Button(
             custom_frame,
             text="Add",
             command=self.add_custom_time,
-            font=("Helvetica", 9, "bold"),
-            bg=self.colors["primary"],
-            fg="white",
+            font=("Arial", 9, "bold"),
+            bg=self.theme["primary"],
+            fg=self.theme["text"],
             padx=15,
-            pady=5,
             relief=tk.FLAT,
-            cursor="hand2"
+            cursor="hand2",
+            activebackground=self.theme["accent"]
         )
         add_btn.pack(side=tk.LEFT, padx=5)
         
-        # Current session timer
-        timer_frame = tk.Frame(track_content, bg=self.colors["card_bg"])
+        # Timer section
+        timer_frame = tk.Frame(content, bg=self.theme["card_bg"])
         timer_frame.pack(fill=tk.X, pady=15)
         
-        tk.Label(
-            timer_frame,
-            text="Live Timer:",
-            font=("Helvetica", 10, "bold"),
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_dark"]
-        ).pack(side=tk.LEFT, padx=5)
+        tk.Label(timer_frame, text="Live Timer:", font=("Arial", 10, "bold"),
+                 bg=self.theme["card_bg"], fg=self.theme["text"]).pack(side=tk.LEFT, padx=5)
         
         self.timer_label = tk.Label(
             timer_frame,
             text="0h 0m 0s",
-            font=("Helvetica", 12, "bold"),
-            bg=self.colors["card_bg"],
-            fg=self.colors["accent"]
+            font=("Arial", 14, "bold"),
+            bg=self.theme["card_bg"],
+            fg=self.theme["accent"]
         )
-        self.timer_label.pack(side=tk.LEFT, padx=5)
+        self.timer_label.pack(side=tk.LEFT, padx=10)
         
-        button_frame = tk.Frame(timer_frame, bg=self.colors["card_bg"])
+        button_frame = tk.Frame(timer_frame, bg=self.theme["card_bg"])
         button_frame.pack(side=tk.LEFT, padx=5)
         
         self.start_btn = tk.Button(
             button_frame,
-            text="▶ Start",
+            text="▶ Start Session",
             command=self.start_session,
-            font=("Helvetica", 9, "bold"),
-            bg=self.colors["success"],
-            fg="white",
+            font=("Arial", 9, "bold"),
+            bg=self.theme["success"],
+            fg=self.theme["bg"],
             padx=12,
             pady=5,
             relief=tk.FLAT,
-            cursor="hand2"
+            cursor="hand2",
+            activebackground=self.theme["accent"]
         )
         self.start_btn.pack(side=tk.LEFT, padx=2)
         
@@ -603,146 +518,118 @@ class FocusBuddyApp:
             button_frame,
             text="⏹ Stop",
             command=self.stop_session,
-            font=("Helvetica", 9, "bold"),
-            bg=self.colors["warning"],
-            fg="white",
+            font=("Arial", 9, "bold"),
+            bg=self.theme["warning"],
+            fg=self.theme["bg"],
             padx=12,
             pady=5,
             relief=tk.FLAT,
             cursor="hand2",
+            activebackground=self.theme["accent"],
             state=tk.DISABLED
         )
         self.stop_btn.pack(side=tk.LEFT, padx=2)
     
-    def create_statistics_section(self, parent):
-        """Create activity-wise statistics section"""
-        stats_frame = self.create_card(parent)
-        stats_frame.pack(fill=tk.X, padx=15, pady=10)
-        
-        header = tk.Frame(stats_frame, bg=self.colors["accent"], height=40)
-        header.pack(fill=tk.X, padx=0, pady=0)
-        header.pack_propagate(False)
-        
-        tk.Label(
-            header,
-            text="📊 Detailed Statistics",
-            font=("Helvetica", 12, "bold"),
-            bg=self.colors["accent"],
-            fg="white"
-        ).pack(side=tk.LEFT, pady=10, padx=15)
-        
-        stats_content = tk.Frame(stats_frame, bg=self.colors["card_bg"])
-        stats_content.pack(fill=tk.X, padx=15, pady=15)
+    def create_stats_section(self, parent):
+        """Create statistics section"""
+        content = self.create_card(parent, "Activity Statistics", "📊")
         
         self.stats_labels = {}
-        colors_for_activities = [self.colors["primary"], self.colors["secondary"], 
-                                  self.colors["warning"], self.colors["accent"]]
+        colors = [self.theme["primary"], self.theme["secondary"], 
+                  self.theme["accent"], self.theme["success"]]
         
         for idx, activity in enumerate(["Studying", "Gaming", "Entertainment", "Other"]):
-            activity_frame = tk.Frame(stats_content, bg=self.colors["card_bg"])
-            activity_frame.pack(fill=tk.X, pady=8)
+            act_frame = tk.Frame(content, bg=self.theme["card_bg"])
+            act_frame.pack(fill=tk.X, pady=8)
             
             tk.Label(
-                activity_frame,
+                act_frame,
                 text=f"{activity}:",
-                font=("Helvetica", 10, "bold"),
-                bg=self.colors["card_bg"],
-                fg=self.colors["text_dark"],
-                width=18,
+                font=("Arial", 10, "bold"),
+                bg=self.theme["card_bg"],
+                fg=self.theme["text"],
+                width=15,
                 anchor=tk.W
             ).pack(side=tk.LEFT, padx=5)
             
-            # Mini progress bar for each activity
-            progress_var = tk.DoubleVar()
-            progress_bar = ttk.Progressbar(
-                activity_frame,
-                variable=progress_var,
-                maximum=100,
-                length=150,
-                mode='determinate'
-            )
-            progress_bar.pack(side=tk.LEFT, padx=5)
-            
-            self.stats_labels[f"{activity}_progress"] = progress_var
-            
             self.stats_labels[activity] = tk.Label(
-                activity_frame,
+                act_frame,
                 text="0h 0m",
-                font=("Helvetica", 10, "bold"),
-                bg=self.colors["card_bg"],
-                fg=colors_for_activities[idx]
+                font=("Arial", 10, "bold"),
+                bg=self.theme["card_bg"],
+                fg=colors[idx]
             )
             self.stats_labels[activity].pack(side=tk.LEFT, padx=5)
     
-    def create_button_section(self, parent):
-        """Create action buttons section"""
-        btn_frame = tk.Frame(parent, bg=self.colors["bg"])
-        btn_frame.pack(fill=tk.X, padx=15, pady=15)
+    def create_controls_section(self, parent):
+        """Create control buttons section"""
+        content = self.create_card(parent, "Settings & Actions", "⚙️")
         
-        # Daily goal settings
-        goal_frame = tk.Frame(btn_frame, bg=self.colors["card_bg"], relief=tk.RAISED, bd=1)
-        goal_frame.pack(side=tk.LEFT, padx=5)
+        # Goal setting
+        goal_frame = tk.Frame(content, bg=self.theme["card_bg"])
+        goal_frame.pack(fill=tk.X, pady=10)
         
-        tk.Label(
-            goal_frame,
-            text="Daily Goal (hours):",
-            font=("Helvetica", 9, "bold"),
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_dark"]
-        ).pack(side=tk.LEFT, padx=5, pady=8)
+        tk.Label(goal_frame, text="Daily Goal (hours):", font=("Arial", 10, "bold"),
+                 bg=self.theme["card_bg"], fg=self.theme["text"]).pack(side=tk.LEFT, padx=5)
         
         self.goal_entry = tk.Entry(
             goal_frame,
             width=5,
-            font=("Helvetica", 10),
-            bg=self.colors["card_bg"],
-            fg=self.colors["text_dark"],
-            insertbackground=self.colors["primary"]
+            font=("Arial", 10),
+            bg=self.theme["card_bg"],
+            fg=self.theme["text"],
+            insertbackground=self.theme["accent"],
+            relief=tk.FLAT,
+            bd=2
         )
-        self.goal_entry.pack(side=tk.LEFT, padx=2, pady=8)
+        self.goal_entry.pack(side=tk.LEFT, padx=5)
         self.goal_entry.insert(0, str(self.session_data['daily_goal'] // 60))
         
-        goal_btn = tk.Button(
+        set_goal_btn = tk.Button(
             goal_frame,
-            text="Set",
+            text="Set Goal",
             command=self.set_daily_goal,
-            font=("Helvetica", 9, "bold"),
-            bg=self.colors["secondary"],
-            fg="white",
-            padx=10,
-            pady=5,
+            font=("Arial", 9, "bold"),
+            bg=self.theme["primary"],
+            fg=self.theme["text"],
+            padx=15,
             relief=tk.FLAT,
-            cursor="hand2"
+            cursor="hand2",
+            activebackground=self.theme["accent"]
         )
-        goal_btn.pack(side=tk.LEFT, padx=5, pady=8)
+        set_goal_btn.pack(side=tk.LEFT, padx=5)
         
-        # Take break button
+        # Action buttons
+        btn_frame = tk.Frame(content, bg=self.theme["card_bg"])
+        btn_frame.pack(fill=tk.X, pady=15)
+        
         break_btn = tk.Button(
             btn_frame,
             text="☕ Take a Break",
             command=self.take_break,
-            font=("Helvetica", 9, "bold"),
-            bg=self.colors["success"],
-            fg="white",
-            padx=15,
+            font=("Arial", 10, "bold"),
+            bg=self.theme["success"],
+            fg=self.theme["bg"],
+            padx=20,
             pady=8,
             relief=tk.FLAT,
-            cursor="hand2"
+            cursor="hand2",
+            activebackground=self.theme["accent"]
         )
         break_btn.pack(side=tk.LEFT, padx=5)
         
-        # Reset button
         reset_btn = tk.Button(
             btn_frame,
             text="🔄 Reset Daily Data",
             command=self.reset_daily_data,
-            font=("Helvetica", 9, "bold"),
-            bg=self.colors["warning"],
-            fg="white",
-            padx=15,
+            font=("Arial", 10, "bold"),
+            bg=self.theme["warning"],
+            fg=self.theme["bg"],
+            padx=20,
             pady=8,
             relief=tk.FLAT,
-            cursor="hand2"
+            cursor="hand2",
+            activebackground=self.theme["accent"]
         )
         reset_btn.pack(side=tk.RIGHT, padx=5)
     
@@ -758,45 +645,47 @@ class FocusBuddyApp:
         })
         self.save_data()
         self.update_dashboard()
+        self.play_sound()
         messagebox.showinfo("✅ Success", f"Added {minutes} minutes of {activity}! 🎉")
     
     def add_custom_time(self):
-        """Add custom screen time"""
+        """Add custom time"""
         try:
-            minutes = int(self.custom_time_entry.get())
+            minutes = int(self.custom_entry.get())
             if minutes <= 0:
-                messagebox.showerror("❌ Error", "Please enter a positive number!")
+                messagebox.showerror("❌ Error", "Enter a positive number!")
                 return
             self.add_screen_time(minutes)
-            self.custom_time_entry.delete(0, tk.END)
+            self.custom_entry.delete(0, tk.END)
         except ValueError:
-            messagebox.showerror("❌ Error", "Please enter a valid number!")
+            messagebox.showerror("❌ Error", "Enter a valid number!")
     
     def start_session(self):
-        """Start a screen time session"""
+        """Start session"""
         self.is_tracking = True
         self.session_timer = 0
         self.start_btn.config(state=tk.DISABLED)
         self.stop_btn.config(state=tk.NORMAL)
+        self.play_sound()
         self.update_timer()
     
     def stop_session(self):
-        """Stop the current session"""
+        """Stop session"""
         self.is_tracking = False
         self.start_btn.config(state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)
+        self.play_sound()
         
         if self.session_timer > 0:
-            # Convert seconds to minutes
             minutes = self.session_timer // 60
             if minutes > 0:
                 self.add_screen_time(minutes)
-                messagebox.showinfo("✅ Success", f"Session ended! Added {minutes} minute(s). 🎯")
+                messagebox.showinfo("✅ Session Ended", f"Added {minutes} minute(s)! 🎯")
             self.session_timer = 0
             self.timer_label.config(text="0h 0m 0s")
     
     def update_timer(self):
-        """Update the timer display"""
+        """Update timer"""
         if self.is_tracking:
             self.session_timer += 1
             hours = self.session_timer // 3600
@@ -806,24 +695,26 @@ class FocusBuddyApp:
             self.root.after(1000, self.update_timer)
     
     def set_daily_goal(self):
-        """Set daily screen time goal"""
+        """Set daily goal"""
         try:
             hours = float(self.goal_entry.get())
             if hours <= 0:
-                messagebox.showerror("❌ Error", "Please enter a positive number!")
+                messagebox.showerror("❌ Error", "Enter a positive number!")
                 return
             self.session_data['daily_goal'] = int(hours * 60)
             self.save_data()
             self.update_dashboard()
-            messagebox.showinfo("✅ Success", f"Daily goal set to {hours} hours! 🎯")
+            self.play_sound()
+            messagebox.showinfo("✅ Goal Set", f"Daily goal set to {hours} hours! 🎯")
         except ValueError:
-            messagebox.showerror("❌ Error", "Please enter a valid number!")
+            messagebox.showerror("❌ Error", "Enter a valid number!")
     
     def take_break(self):
-        """Record a break"""
+        """Take a break"""
         self.session_data['breaks_taken'] += 1
         self.save_data()
         self.update_dashboard()
+        self.play_sound()
         
         import random
         message = random.choice(BREAK_MESSAGES)
@@ -831,7 +722,7 @@ class FocusBuddyApp:
     
     def reset_daily_data(self):
         """Reset daily data"""
-        if messagebox.askyesno("⚠️ Confirm", "Are you sure you want to reset today's data?"):
+        if messagebox.askyesno("⚠️ Confirm", "Reset today's data?"):
             self.session_data = {
                 'date': str(datetime.now().date()),
                 'daily_goal': 480,
@@ -847,64 +738,51 @@ class FocusBuddyApp:
             }
             self.save_data()
             self.update_dashboard()
-            messagebox.showinfo("✅ Success", "Daily data has been reset! 🔄")
+            self.play_sound()
+            messagebox.showinfo("✅ Reset Complete", "Daily data cleared! 🔄")
     
     def update_dashboard(self):
-        """Update all dashboard elements"""
+        """Update dashboard"""
         total_time = self.session_data['total_screen_time']
         daily_goal = self.session_data['daily_goal']
         
-        # Update screen time display
+        # Update display
         hours = total_time // 60
         minutes = total_time % 60
-        self.screen_time_display.config(text=f"{hours}h {minutes}m")
+        self.screen_time_label.config(text=f"{hours}h {minutes}m")
         
-        # Update daily goal display
         goal_hours = daily_goal // 60
         goal_minutes = daily_goal % 60
-        self.goal_display.config(text=f"{goal_hours}h {goal_minutes}m")
+        self.goal_label.config(text=f"{goal_hours}h {goal_minutes}m")
         
-        # Update breaks display
-        self.breaks_display.config(text=str(self.session_data['breaks_taken']))
+        self.breaks_label.config(text=str(self.session_data['breaks_taken']))
         
-        # Update progress bar
+        # Progress
         progress = (total_time / daily_goal * 100) if daily_goal > 0 else 0
         progress = min(progress, 100)
         self.progress_var.set(progress)
-        self.progress_label.config(text=f"{int(progress)}% of daily goal used")
+        self.progress_label.config(text=f"{int(progress)}% used")
         
-        # Update motivational message
+        # Motivational message
         import random
         activity = self.current_activity.get()
         message = random.choice(MOTIVATIONAL_MESSAGES.get(activity, MOTIVATIONAL_MESSAGES["Other"]))
         self.motivational_label.config(text=message)
         
-        # Update quick stats
-        total_activities = sum(self.session_data['activity_time'].values())
-        
+        # Stats
         for activity in ["Studying", "Gaming", "Entertainment", "Other"]:
             time_minutes = self.session_data['activity_time'][activity]
             hours = time_minutes // 60
             minutes = time_minutes % 60
-            self.quick_stats_labels[activity].config(text=f"{hours}h {minutes}m")
-            
-            # Update activity progress bars
-            if total_activities > 0:
-                activity_progress = (time_minutes / total_activities * 100)
-            else:
-                activity_progress = 0
-            self.stats_labels[f"{activity}_progress"].set(activity_progress)
-            
             self.stats_labels[activity].config(text=f"{hours}h {minutes}m")
     
     def start_break_reminder(self):
-        """Start background thread for break reminders"""
+        """Start break reminder"""
         def reminder_loop():
             while True:
                 time.sleep(60)
                 if self.is_tracking:
                     self.break_counter += 1
-                    # Show reminder every 25 minutes (Pomodoro style)
                     if self.break_counter >= 25:
                         self.show_break_reminder()
                         self.break_counter = 0
@@ -915,14 +793,14 @@ class FocusBuddyApp:
         self.break_reminder_thread.start()
     
     def show_break_reminder(self):
-        """Show break reminder popup"""
-        import random
+        """Show break reminder"""
+        self.play_sound()
         activity = self.current_activity.get()
         
         if activity == "Studying":
-            message = "You've been studying for 25 minutes! Time for a short break! 📚\n\nConsider taking 5 minutes to rest your eyes and mind."
+            message = "You've been studying for 25 minutes!\nTime for a short break! 📚"
         else:
-            message = "You've been at it for a while! Time to take a break! 🧘\n\nStand up, stretch, and give your eyes a rest!"
+            message = "You've been at it for 25 minutes!\nTime to take a break! 🧘"
         
         if messagebox.askyesno("⏰ Break Reminder", message + "\n\nDid you take a break?"):
             self.take_break()
